@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Teacher Marks - Local</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Poppins',sans-serif;background:#f5f7fa;color:#2d3748}
+.login-screen{height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#2563eb,#1e40af)}
+.login-box{background:white;padding:40px;border-radius:16px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+.login-box h2{text-align:center;margin-bottom:25px;color:#2563eb}
+input,select,button{width:100%;padding:14px;margin-bottom:15px;border:2px solid #e2e8f0;border-radius:10px;font-size:15px}
+button.primary{background:#2563eb;color:white;border:none;cursor:pointer;font-weight:600}
+.header{background:#2563eb;color:white;padding:18px 30px;display:flex;justify-content:space-between;align-items:center}
+.container{max-width:1300px;margin:30px auto;padding:0 20px}
+.card{background:white;border-radius:12px;padding:25px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px}
+table{width:100%;border-collapse:collapse;margin-top:20px}
+th{background:#f8fafc;padding:14px;text-align:left;font-weight:600;border-bottom:2px solid #e2e8f0}
+td{padding:14px;border-bottom:1px solid #f1f5f9}
+.badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.badge.male{background:#dbeafe;color:#1e40af}
+.badge.female{background:#fce7f3;color:#9d174d}
+.section-title{margin:25px 0 15px;font-size:18px;color:#2563eb;border-left:4px solid #2563eb;padding-left:12px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <h2>👨‍🏫 Teacher Login</h2>
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button class="primary" onclick="login()">Login</button>
+    <hr style="margin:20px 0">
+    <input type="text" id="newUser" placeholder="New Teacher Username">
+    <input type="password" id="newPass" placeholder="New Password">
+    <button onclick="createTeacher()">Create Teacher Account</button>
+    <p style="font-size:12px;color:#64748b;margin-top:10px">Default: admin / admin123</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <div class="header">
+    <h1>Multi-Teacher Marks System</h1>
+    <div>Logged in: <span id="currentTeacher"></span> <button onclick="logout()" style="width:auto;margin-left:15px;padding:8px 16px;background:#dc2626">Logout</button></div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h2>Enter Marks</h2>
+      <div class="form-grid">
+        <input id="studentName" placeholder="Student Name">
+        <select id="studentGender"><option value="">Gender</option><option>Male</option><option>Female</option></select>
+        <input id="studentClass" placeholder="Class">
+        <select id="subject"><option>Math</option><option>English</option><option>Science</option></select>
+        <select id="workType"><option>Test</option><option>Exercise</option><option>Assignment</option></select>
+        <input type="date" id="workDate">
+        <input id="workTitle" placeholder="Title">
+        <input type="number" id="score" placeholder="Score /100" min="0" max="100">
+        <button class="primary" onclick="saveMark()">Save Mark</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>All Marks - Visible to All Teachers on This Laptop</h2>
+      
+      <h3 class="section-title">Tests</h3>
+      <table id="testsTable"><thead><tr><th>Student</th><th>Gender</th><th>Class</th><th>Subject</th><th>Title</th><th>Date</th><th>Score</th><th>Teacher</th></tr></thead><tbody></tbody></table>
+
+      <h3 class="section-title">Exercises</h3>
+      <table id="exercisesTable"><thead><tr><th>Student</th><th>Gender</th><th>Class</th><th>Subject</th><th>Title</th><th>Date</th><th>Score</th><th>Teacher</th></tr></thead><tbody></tbody></table>
+
+      <h3 class="section-title">Assignments</h3>
+      <table id="assignmentsTable"><thead><tr><th>Student</th><th>Gender</th><th>Class</th><th>Subject</th><th>Title</th><th>Date</th><th>Score</th><th>Teacher</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('workDate').valueAsDate = new Date();
+
+// Initialize default admin
+if(!localStorage.getItem('teachers')) {
+  localStorage.setItem('teachers', JSON.stringify([{username:'admin', password:'admin123', name:'Admin'}]));
+}
+if(!localStorage.getItem('marks')) {
+  localStorage.setItem('marks', JSON.stringify([]));
+}
+
+let currentTeacher = localStorage.getItem('currentTeacher');
+
+if(currentTeacher) showApp();
+
+function login() {
+  const u = document.getElementById('username').value;
+  const p = document.getElementById('password').value;
+  const teachers = JSON.parse(localStorage.getItem('teachers'));
+  const teacher = teachers.find(t => t.username === u && t.password === p);
+  if(teacher) {
+    localStorage.setItem('currentTeacher', u);
+    currentTeacher = u;
+    showApp();
+  } else alert('Invalid login');
+}
+
+function createTeacher() {
+  const u = document.getElementById('newUser').value;
+  const p = document.getElementById('newPass').value;
+  if(!u || !p) return alert('Fill all');
+  const teachers = JSON.parse(localStorage.getItem('teachers'));
+  if(teachers.find(t => t.username === u)) return alert('Username exists');
+  teachers.push({username:u, password:p, name:u});
+  localStorage.setItem('teachers', JSON.stringify(teachers));
+  alert('Account created! Login now.');
+}
+
+function showApp() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('currentTeacher').textContent = currentTeacher;
+  renderTables();
+}
+
+function logout() {
+  localStorage.removeItem('currentTeacher');
+  location.reload();
+}
+
+function saveMark() {
+  const data = {
+    id: Date.now(),
+    studentName: document.getElementById('studentName').value.trim(),
+    gender: document.getElementById('studentGender').value,
+    class: document.getElementById('studentClass').value.trim(),
+    subject: document.getElementById('subject').value,
+    workType: document.getElementById('workType').value,
+    workDate: document.getElementById('workDate').value,
+    workTitle: document.getElementById('workTitle').value.trim(),
+    score: parseInt(document.getElementById('score').value),
+    teacher: currentTeacher
+  };
+  if(!data.studentName || !data.gender || !data.score) return alert('Fill required fields');
+  const marks = JSON.parse(localStorage.getItem('marks'));
+  marks.push(data);
+  localStorage.setItem('marks', JSON.stringify(marks));
+  renderTables();
+  ['studentName','workTitle','score'].forEach(id => document.getElementById(id).value = '');
+}
+
+function renderTables() {
+  const marks = JSON.parse(localStorage.getItem('marks'));
+  
+  // Sort by gender: Male first, then Female, then A-Z
+  marks.sort((a,b) => {
+    if(a.gender !== b.gender) return a.gender === 'Male' ? -1 : 1;
+    return a.studentName.localeCompare(b.studentName);
+  });
+  
+  ['Test','Exercise','Assignment'].forEach(type => {
+    const filtered = marks.filter(m => m.workType === type);
+    const tbody = document.querySelector(`#${type.toLowerCase()}sTable tbody`);
+    tbody.innerHTML = filtered.map(m => `
+      <tr>
+        <td>${m.studentName}</td>
+        
+        <td>${m.class}</td>
+        <td>${m.subject}</td>
+        <td>${m.workTitle}</td>
+        <td>${m.workDate}</td>
+        <td><strong>${m.score}/100</strong></td>
+        <td style="font-size:12px;color:#64748b">${m.teacher}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="8" style="text-align:center;color:#94a3b8">No records</td></tr>';
+  });
+}
+</script>
+</body>
+</html>
